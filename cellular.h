@@ -1,0 +1,21 @@
+
+typedef enum _IOT_STAT_
+{
+    IOT_CPIN=0,
+    IOT_START,
+    IOT_IDLE,
+    IOT_RDY,
+    IOT_SERVICE,
+    IOT_ACT,
+    IOT_IP,
+    IOT_CONNECT,
+    IOT_DISCONNECT,
+    IOT_ACTIP1,  /* 9 */
+    IOT_ACTIP2_0,
+    IOT_ACTIP2,
+    IOT_ACTIP3,
+    IOT_ACTIP4,
+    IOT_ACTIP5,
+    IOT_ACTIP6
+} IOT_STAT;
+
