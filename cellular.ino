@@ -3,7 +3,7 @@
 #include "SC5801.h"
 #include "cellular.h"
 
-#define  DEBUG_MSG      1
+#define  DEBUG_MSG      0
 #if DEBUG_MSG
   #define COM_PRN     Report 
 #else
