@@ -53,37 +53,31 @@ void loop(){
   if (state != old_state) {
     PRINTF("NBIOT state changed from %d to %d\r\n", old_state, state);
     old_state = state;
-    
-    if (state == NBIOT_GET_IP) {
-      char ip[16];
-      nbiot.GetIPAddr(ip);
-      PRINTF("NBIOT IP - %s\r\n", ip);     
-    }
   }
 
-  static unsigned long last = 0;
-  if (state == NBIOT_GET_IP) {
-    char data[64];
-    int s = nbiot.RecvUDP(0, data, sizeof(data));
-    if (s > 0) {
-      PRINTF("RECV - %s\r\n", data);  
-    }
-        
-    unsigned long now = millis();
-    if ((now - last) > 1000) {
-      sprintf(data, "Hello!\r\n");      
-      
-      nbiot.UDPConnect(host, port, 0); // 0 is binding port
-
-      delay(2000);
-      
+  unsigned long now = millis();
+  if ((now - last) > 2000) {
+    static unsigned long last = 0;
+    static unsigned connecting = 0;
+    if (state == NBIOT_GET_IP) {      
+        if (connecting == 0) {
+          nbiot.UDPConnect(host, port, 0); // 0 is binding port
+          connecting = 1;
+        }
+      }
+    } else if (state == NBIOT_CONNECT) {
+      char data[64];
+      sprintf(data, "Hello!\r\n");
       nbiot.SendUDP(0, data, strlen(data));
-
-      PRINTF("SEND - %s to %s:%d\r\n", data, host, port);
-
-      last = now;
+      
+      int s = nbiot.RecvUDP(0, data, sizeof(data));
+      if (s > 0) {
+        PRINTF("RECV - %s\r\n", data);
+      }
     }
-  }  
+    
+    last = now;
+  }
   
 //  while(com.available())  {  
 //    memset(cmd, 0, sizeof(cmd));
