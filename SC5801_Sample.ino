@@ -42,28 +42,37 @@ void setup() {
   nbiot.Connect();
 }
 
-static unsigned int connecting = FALSE;
+bool connecting = FALSE;
+
+int seq = 1;
 
 void loop() {
   static int old_state;
 
-  int state = nbiot.GetState();
+  int state = nbiot.GetState(); // NBIOT_SIM_ERR, NBIOT_PIN_ERR, NBIOT_CLOSE, NBIOT_READY, NBIOT_DAILING, NBIOT_GET_IP, NBIOT_CONNECT, NBIOT_DISCONN
   if (state != old_state) {
     PRINTF("NB-IOT state is changed from %d to %d\r\n", old_state, state);
     old_state = state;
-  }
-  
-  static unsigned long last = 0;
-  unsigned long now = millis();
-  if ((now - last) > 2000) { // FIXME - to variable        
+
     if (state == NBIOT_GET_IP) { // 3
       if (connecting == FALSE) {
         PRINTF("Create a UDP connection - %s:%d\r\n", host, port);
         nbiot.UDPConnect(host, port, 0); // 0 is binding port
         connecting = TRUE;
-      }        
-      
-    } else if (state == NBIOT_CONNECT) { // 4
+      }
+    } else if (state == NBIOT_CLOSE) { // 0
+      if (connecting == TRUE) {      
+        connecting = FALSE; // reconnect later
+  
+        PRINTF("NB-IoT is closed\r\n");
+      }
+    }    
+  }
+  
+  static unsigned long last = 0;
+  unsigned long now = millis();
+  if ((now - last) > 1000) { // FIXME - to variable        
+    if (state == NBIOT_CONNECT) { // 4
       char data[64];
       
       int s = nbiot.RecvUDP(0, data, sizeof(data));
@@ -72,16 +81,9 @@ void loop() {
         PRINTF("RECV - %s\r\n", data);
       }
       
-      sprintf(data, "Hello\n");
+      sprintf(data, " %05d", seq++);
       nbiot.SendUDP(0, data, strlen(data));
-      PRINTF("SEND - %s\r\n", data);
-      
-    } else if ((state == NBIOT_DISCONN) || (state == NBIOT_CLOSE)) { // 5 or 0
-      if (connecting == TRUE) {      
-        connecting = FALSE; // reconnect later
-  
-        PRINTF("NB-IoT is closed\r\n");
-      }
+      PRINTF("SEND - %s\r\n", data);      
     }
     
     last = now;

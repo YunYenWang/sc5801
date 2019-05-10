@@ -142,6 +142,8 @@ void NBIOT_loop()
       Serial1.print(str);
       break;
     case IOT_IDLE:                 //Get Ready, Idle
+// ###
+      conn = 0;    
       break;
     case IOT_SERVICE:              
       iot_stat = IOT_ACT;
