@@ -23,7 +23,7 @@ DeviceSerial  com;
 
 char* cht_iot_apn = "internet.iot";
 char * host = "139.162.116.177";
-int port = 9999;
+int port = 5801;
 int serial_mode = COM_TYPE_RS485;
 int serial_baudrate = 115200;
 
@@ -56,7 +56,7 @@ void loop() {
 
     if (state == NBIOT_GET_IP) { // 3
       if (connecting == FALSE) {
-        PRINTF("Create a UDP connection - %s:%d\r\n", host, port);
+        PRINTF("Establish a UDP connection - %s:%d\r\n", host, port);
         nbiot.UDPConnect(host, port, 0); // 0 is binding port
         connecting = TRUE;
       }
@@ -68,25 +68,25 @@ void loop() {
       }
     }    
   }
-  
-  static unsigned long last = 0;
-  unsigned long now = millis();
-  if ((now - last) > 1000) { // FIXME - to variable        
-    if (state == NBIOT_CONNECT) { // 4
-      char data[64];
-      
+
+  if (state == NBIOT_CONNECT) {  
+    static unsigned long last = 0;
+    unsigned long now = millis();
+    if ((now - last) > 1000) { // FIXME - to variable      
+      char data[256];
+
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
         data[s] = 0; // zero end string
         PRINTF("RECV - %s\r\n", data);
       }
-      
+            
       sprintf(data, " %05d", seq++);
       nbiot.SendUDP(0, data, strlen(data));
       PRINTF("SEND - %s\r\n", data);      
+      
+      last = now;
     }
-    
-    last = now;
   }
 }
 
