@@ -383,7 +383,8 @@ void NBIOT_loop()
              break;
            case IOT_CONNECT:            //Remote Data
              //--- Receive Remote Data ---
-             rcv_idx = strlen(rcv_buf);
+// ###             
+//             rcv_idx = strlen(rcv_buf);
              if (rcv_idx <= 0) break;
              if ((data_length+rcv_idx) > SIZE_RCV_DATA)  cnt = SIZE_RCV_DATA-data_length;
              else cnt = rcv_idx;

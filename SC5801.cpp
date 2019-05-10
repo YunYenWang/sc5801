@@ -756,7 +756,10 @@ int NBIOT::SendUDP(int socket, char *data, int len)
   sprintf(str, "AT+CIPSEND=%d\r\n",len);
   Serial1.print(str);
   delay(500);
-  Serial1.print(data);
+// ###
+//  Serial1.print(data);
+  Serial1.write((uint8_t*) data, len);
+  Serial1.println("\r\n");
   
   return len;
 } 

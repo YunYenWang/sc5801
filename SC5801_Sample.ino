@@ -6,6 +6,7 @@
 #include <stdio.h> 
 #include <string.h> 
 #include "SC5801.h"
+#include "chttl.h"
 #define SDK_VER_MAJOR    0
 #define SDK_VER_MINER    6
 
@@ -27,6 +28,10 @@ int port = 5801;
 int serial_mode = COM_TYPE_RS485;
 int serial_baudrate = 115200;
 
+//char imsi[15];
+//int size_of_imsi = 15;
+//extern unsigned int seq = 1;
+
 void setup() { 
   sc5801.init();
   
@@ -40,11 +45,42 @@ void setup() {
   nbiot.SetPinEnable(0);
   nbiot.SetBands(NBIOT_BAND_AUTO);
   nbiot.Connect();
+
+  // TODO
+  set_imsi("0123456789ABCDE");
 }
 
-bool connecting = FALSE;
+//// caller's responsibilty to free memory
+//type_pdu* new_pdu(byte function, byte* data, int len) {
+//  type_pdu* pdu = (type_pdu*) malloc(sizeof(type_pdu));
+//  pdu->len = 2 + size_of_imsi + 1 + 1 + 2 + len + 1;  
+//  pdu->payload = (byte*) malloc(pdu->len);
+//  
+//  int i = 0; 
+//  
+//  pdu->payload[i++] = 0x16;
+//  pdu->payload[i++] = 0xA9;
+//  memcpy(pdu->payload + i, imsi, size_of_imsi);
+//  i += size_of_imsi;
+//  pdu->payload[i++] = seq;
+//  seq = (seq + 1) % 0x0FF;
+//  
+//  pdu->payload[i++] = function;
+//  pdu->payload[i++] = (char) ((len & 0x0FF00) >> 8);
+//  pdu->payload[i++] = (char) (len & 0x0FF);
+//  memcpy(pdu->payload + i, data, len);
+//  i += len;
+//  pdu->payload[i++] = 0; // TODO - checksum
+//
+//  return pdu;  
+//}
+//
+//void free_pdu(type_pdu* pdu) {
+//  free(pdu->payload);
+//  free(pdu);
+//}
 
-int seq = 1;
+bool connecting = FALSE;
 
 void loop() {
   static int old_state;
@@ -78,12 +114,26 @@ void loop() {
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
         data[s] = 0; // zero end string
-        PRINTF("RECV - %s\r\n", data);
+        PRINTF("RECV - %d\r\n", s);
+
+        for (int i = 0;i < s;i++) {
+          PRINTF("%02X ", data[i]);
+        }
+        PRINTF("\r\n");        
       }
-            
-      sprintf(data, " %05d", seq++);
-      nbiot.SendUDP(0, data, strlen(data));
-      PRINTF("SEND - %s\r\n", data);      
+      
+      sprintf(data, "%05d", get_seq());
+      type_pdu* pdu = new_pdu(1, (byte*) data, strlen(data));
+
+//      for (int i = 0;i < pdu->len;i++) {
+//        PRINTF("%02X ", pdu->payload[i]);
+//      }
+//      PRINTF("\r\n");
+      
+      nbiot.SendUDP(0, (char*) pdu->payload, pdu->len);
+      PRINTF("SEND - %d\r\n", pdu->len);      
+
+      free_pdu(pdu);
       
       last = now;
     }
