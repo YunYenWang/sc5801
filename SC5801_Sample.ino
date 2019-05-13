@@ -1,6 +1,6 @@
 /*  
- *  Get input command & Send command to NBIOT
- *  Notice : need to choise "NL & CR" mode
+ * NB-IoT Modbus Collector
+ * @author: Rick
  */ 
 
 #include <stdio.h> 
@@ -10,16 +10,6 @@
 #include <WiFi.h>
 #include "SC5801.h"
 #include "chttl.h"
-#define SDK_VER_MAJOR    0
-#define SDK_VER_MINER    6
-
-// #define DEBUG_ENABLED    1
-
-// #if DEBUG_ENABLED
-//   #define PRINTF    Report
-// #else
-//   #define PRINTF
-// #endif
 
 void xlog(const char* format, ...);
 
@@ -41,8 +31,6 @@ void setup() {
   com.SetSerialMode(serial_mode);
   com.begin(serial_baudrate);
   
-  // PRINTF("\r\n------ SC5801 CHT v1.0.0 ------------\r\n");
-    
   nbiot.SetApn(cht_iot_apn);
   nbiot.SetPinCode("");
   nbiot.SetPinEnable(0);
@@ -52,7 +40,6 @@ void setup() {
   // TODO
   set_imsi("0123456789ABCDE");
 
-  // PRINTF("Wi-Fi AP Mode is starting ...\r\n");
   wifi_ap_setup();
 }
 
@@ -63,12 +50,12 @@ void loop() {
 
   int state = nbiot.GetState(); // NBIOT_SIM_ERR, NBIOT_PIN_ERR, NBIOT_CLOSE, NBIOT_READY, NBIOT_DAILING, NBIOT_GET_IP, NBIOT_CONNECT, NBIOT_DISCONN
   if (state != old_state) {
-    xlog("NB-IOT state is changed from %d to %d\r\n", old_state, state);
+    xlog("NB-IOT state is changed from %d to %d", old_state, state);
     old_state = state;
 
     if (state == NBIOT_GET_IP) { // 3
       if (connecting == FALSE) {
-        xlog("Establish a UDP connection - %s:%d\r\n", host, port);
+        xlog("Establish a UDP connection - %s:%d", host, port);
         nbiot.UDPConnect(host, port, 0); // 0 is binding port
         connecting = TRUE;
       }
@@ -76,7 +63,7 @@ void loop() {
       if (connecting == TRUE) {      
         connecting = FALSE; // cellular will reconnect later
   
-        xlog("NB-IoT is closed\r\n");
+        xlog("NB-IoT is closed");
       }
     }    
   }
@@ -89,16 +76,16 @@ void loop() {
 
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
-        xlog("RECV ");
-        DUMP(data, s);
+        xlog("RECV [%d]", s);
+        // DUMP(data, s);
       }
       
       sprintf(data, "%05d", get_seq()); // FIXME - the 'data' is seq number now for test
       type_pdu* pdu = new_pdu(1, (byte*) data, strlen(data));
       
       nbiot.SendUDP(0, (char*) pdu->payload, pdu->len);
-      xlog("SEND ");      
-      DUMP((char*) pdu->payload, pdu->len);
+      xlog("SEND [%d]", pdu->len);      
+      // DUMP((char*) pdu->payload, pdu->len);
 
       free_pdu(pdu);
       
@@ -123,11 +110,8 @@ void wifi_ap_setup() {
   WiFi.beginNetwork(wifi_ap_ssid, wifi_ap_key);
 
   while (WiFi.localIP() == INADDR_NONE) {
-    // PRINTF(".");
     delay(300);
   }
-
-  // PRINTF("\r\nWi-Fi AP is ready.\r\n");
 
   wifi_udp_client.begin(0);
 }
@@ -135,11 +119,10 @@ void wifi_ap_setup() {
 // ======
 
 void DUMP(char *bytes, int size) {
-  xlog("[%d] ", size);
-  for (int i = 0; i < size; i++) {
-    xlog("%02X ", bytes[i]);
-  }
-  xlog("\r\n");    
+  xlog("[%d]", size);
+  // for (int i = 0; i < size; i++) {
+  //   xlog("%02X ", bytes[i]);
+  // }
 }
 
 void xlog(const char* format, ...) {
