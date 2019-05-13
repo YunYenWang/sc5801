@@ -12,6 +12,10 @@ void set_imsi(char* s) {
   strncpy(imsi, s, SIZE_OF_IMSI);
 }
 
+char* get_imsi() {
+  return imsi;
+}
+
 unsigned int get_seq() {
   return seq;
 }

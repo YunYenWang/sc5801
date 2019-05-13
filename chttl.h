@@ -7,6 +7,8 @@ typedef struct {
 
 void set_imsi(char* imsi);
 
+char* get_imsi();
+
 unsigned int get_seq();
 
 type_pdu* new_pdu(byte function, byte* data, int len);
