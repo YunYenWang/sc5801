@@ -1,3 +1,5 @@
+#define PDU_PAYLOAD_SIZE 256
+
 typedef struct {
   byte* payload;
   int len;

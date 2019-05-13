@@ -29,7 +29,7 @@ type_pdu* new_pdu(byte function, byte* data, int len) {
   memcpy(pdu->payload + i, imsi, SIZE_OF_IMSI);
   i += SIZE_OF_IMSI;
   pdu->payload[i++] = seq;
-  seq = (seq + 1) % 0x0FF;
+  seq = (seq + 1) & 0x0FF;
   
   pdu->payload[i++] = function;
   pdu->payload[i++] = (char) ((len & 0x0FF00) >> 8);

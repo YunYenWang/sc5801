@@ -28,9 +28,7 @@ int port = 5801;
 int serial_mode = COM_TYPE_RS485;
 int serial_baudrate = 115200;
 
-//char imsi[15];
-//int size_of_imsi = 15;
-//extern unsigned int seq = 1;
+int reporting_interval = 1000;
 
 void setup() { 
   sc5801.init();
@@ -38,47 +36,17 @@ void setup() {
   com.SetSerialMode(serial_mode);
   com.begin(serial_baudrate);
   
-  PRINTF("\n------ SC5801 SDK Sample Code (V%d.%d) ------------\n\r", SDK_VER_MAJOR, SDK_VER_MINER);
+  PRINTF("\n------ SC5801 CHT v1.0.0 ------------\n\r");
     
   nbiot.SetApn(cht_iot_apn);
   nbiot.SetPinCode("");
   nbiot.SetPinEnable(0);
   nbiot.SetBands(NBIOT_BAND_AUTO);
   nbiot.Connect();
-
+  
   // TODO
   set_imsi("0123456789ABCDE");
 }
-
-//// caller's responsibilty to free memory
-//type_pdu* new_pdu(byte function, byte* data, int len) {
-//  type_pdu* pdu = (type_pdu*) malloc(sizeof(type_pdu));
-//  pdu->len = 2 + size_of_imsi + 1 + 1 + 2 + len + 1;  
-//  pdu->payload = (byte*) malloc(pdu->len);
-//  
-//  int i = 0; 
-//  
-//  pdu->payload[i++] = 0x16;
-//  pdu->payload[i++] = 0xA9;
-//  memcpy(pdu->payload + i, imsi, size_of_imsi);
-//  i += size_of_imsi;
-//  pdu->payload[i++] = seq;
-//  seq = (seq + 1) % 0x0FF;
-//  
-//  pdu->payload[i++] = function;
-//  pdu->payload[i++] = (char) ((len & 0x0FF00) >> 8);
-//  pdu->payload[i++] = (char) (len & 0x0FF);
-//  memcpy(pdu->payload + i, data, len);
-//  i += len;
-//  pdu->payload[i++] = 0; // TODO - checksum
-//
-//  return pdu;  
-//}
-//
-//void free_pdu(type_pdu* pdu) {
-//  free(pdu->payload);
-//  free(pdu);
-//}
 
 bool connecting = FALSE;
 
@@ -98,7 +66,7 @@ void loop() {
       }
     } else if (state == NBIOT_CLOSE) { // 0
       if (connecting == TRUE) {      
-        connecting = FALSE; // reconnect later
+        connecting = FALSE; // cellular will reconnect later
   
         PRINTF("NB-IoT is closed\r\n");
       }
@@ -108,35 +76,33 @@ void loop() {
   if (state == NBIOT_CONNECT) {  
     static unsigned long last = 0;
     unsigned long now = millis();
-    if ((now - last) > 1000) { // FIXME - to variable      
-      char data[256];
+    if ((now - last) > reporting_interval) { // FIXME - to variable      
+      char data[PDU_PAYLOAD_SIZE];
 
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
-        data[s] = 0; // zero end string
-        PRINTF("RECV - %d\r\n", s);
-
-        for (int i = 0;i < s;i++) {
-          PRINTF("%02X ", data[i]);
-        }
-        PRINTF("\r\n");        
+        PRINTF("RECV ");
+        DUMP(data, s);
       }
       
-      sprintf(data, "%05d", get_seq());
+      sprintf(data, "%05d", get_seq()); // FIXME - the 'data' is seq number now for test
       type_pdu* pdu = new_pdu(1, (byte*) data, strlen(data));
-
-//      for (int i = 0;i < pdu->len;i++) {
-//        PRINTF("%02X ", pdu->payload[i]);
-//      }
-//      PRINTF("\r\n");
       
       nbiot.SendUDP(0, (char*) pdu->payload, pdu->len);
-      PRINTF("SEND - %d\r\n", pdu->len);      
+      PRINTF("SEND ");      
+      DUMP((char*) pdu->payload, pdu->len);
 
       free_pdu(pdu);
       
       last = now;
     }
-  }
+  }  
 }
 
+void DUMP(char *bytes, int size) {
+  PRINTF("[%d] ", size);
+  for (int i = 0; i < size; i++) {
+    PRINTF("%02X ", bytes[i]);
+  }
+  PRINTF("\r\n");
+}
