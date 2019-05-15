@@ -24,7 +24,9 @@ char* get_imsi();
 
 unsigned int get_seq();
 
-type_packet* new_pdu(byte function, byte* data, int len);
+unsigned int next_seq();
+
+type_packet* new_pdu(int seq, byte function, byte* data, int len);
 
 type_pdu* read_pdu(byte* packet, int* i, int s, char* err);
 

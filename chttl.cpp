@@ -18,6 +18,10 @@ unsigned int get_seq() {
   return seq;
 }
 
+unsigned int next_seq() {
+  return seq = (seq + 1) & 0x0FF;
+}
+
 int checksum(byte* data, int len) {
   int crc = 0;
   for (int i = 0;i < len;i++) {
@@ -28,7 +32,7 @@ int checksum(byte* data, int len) {
 }
 
 // caller's responsibilty to free memory
-type_packet* new_pdu(byte function, byte* data, int len) {
+type_packet* new_pdu(int seq, byte function, byte* data, int len) {
   type_packet* packet = (type_packet*) malloc(sizeof(type_packet));
   packet->len = 2 + SIZE_OF_IMSI + 1 + 1 + 2 + len + 1;  
   packet->payload = (byte*) malloc(packet->len);
@@ -40,7 +44,6 @@ type_packet* new_pdu(byte function, byte* data, int len) {
   memcpy(packet->payload + i, imsi, SIZE_OF_IMSI);
   i += SIZE_OF_IMSI;
   packet->payload[i++] = seq;
-  seq = (seq + 1) & 0x0FF;
   
   packet->payload[i++] = function;
   packet->payload[i++] = (char) ((len & 0x0FF00) >> 8);

@@ -30,7 +30,8 @@ int port = 5801;
 int serial_mode = COM_TYPE_RS485; // TODO - from configuration
 int serial_baudrate = 115200;
 
-int reporting_interval = 5000;
+int rx_interval = 1000;
+int heartbeat_interval = 10000;
 
 void setup() {
   sc5801.init();
@@ -90,28 +91,30 @@ void loop() {
   }
 
   if (state == NBIOT_CONNECT) {  
-    static unsigned long last = 0;
+    static unsigned long last_rx = 0;
+    static unsigned long last_heartbeat = 0;
     unsigned long now = millis();
-    if ((now - last) > reporting_interval) {
+
+    if ((now - last_rx) > rx_interval) {
       char data[PDU_PAYLOAD_SIZE];
 
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
-        xlog("RECV [%d]", s);
+        xlog("RECV - [%d]", s);
         handle_packet(data, s);        
-        // DUMP(data, s);
       }
-      
-      type_packet* packet = new_packet_heartbeat();
-      
-      nbiot.SendUDP(0, (char*) packet->payload, packet->len);
-      xlog("SEND [%d]", packet->len);      
-      // DUMP((char*) pdu->payload, pdu->len);
 
-      free_packet(packet);
-      
-      last = now;
+      last_rx = now;
     }
+
+    if ((now - last_heartbeat) > heartbeat_interval) {
+      type_packet* packet = new_packet_heartbeat();      
+      nbiot.SendUDP(0, (char*) packet->payload, packet->len);      
+      free_packet(packet);
+      xlog("SEND - 'Heartbeat'");
+
+      last_heartbeat = now;
+    }      
   }  
 }
 
@@ -125,17 +128,14 @@ void handle_packet(char* packet, int s) {
       xlog("Error: %s", err);
 
     } else {
-      // char uid[64];
-      // memset(uid, 0, 64);
-      // memcpy(uid, pdu->uid, SIZE_OF_IMSI);
+      xlog("Packet funcation: %d", pdu->function);
 
-      // char data[64];
-      // memset(data, 0, 64);
-      // memcpy(data, pdu->data, pdu->length);
-
-      // xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",      
-      //   uid, pdu->seq, pdu->function, pdu->length, data, pdu->crc
-      // );
+      if (pdu->function == 1) { // echo
+        type_packet* reply = new_packet_echo_reply(pdu->seq, pdu->data, pdu->length);
+        nbiot.SendUDP(0, (char*) reply->payload, reply->len);
+        free(reply);
+        xlog("REPLY - 'Echo'");
+      }
 
       free(pdu);
     }
@@ -150,13 +150,18 @@ byte* int2bytes(byte* bytes, int value) {
 }
 
 type_packet* new_packet_heartbeat() {
+  int seq = next_seq();
   byte data[6];
 
   int2bytes(&data[0], nbiot.GetSignalRSSI());
   int2bytes(&data[2], nbiot.GetSignalRSRP());
   int2bytes(&data[4], VERSION);
-  
-  return new_pdu(1, data, 6); // function = 1
+
+  return new_pdu(seq, 0, data, 6); // function = 0
+}
+
+type_packet* new_packet_echo_reply(int seq, byte* data, int s) {  
+  return new_pdu(seq, 1, data, s); // function = 1
 }
 
 // ======
