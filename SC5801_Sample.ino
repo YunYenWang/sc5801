@@ -11,6 +11,8 @@
 #include "SC5801.h"
 #include "chttl.h"
 
+#define VERSION 1
+
 void xlog(const char* format, ...);
 
 extern NBIOT nbiot;
@@ -28,7 +30,7 @@ int port = 5801;
 int serial_mode = COM_TYPE_RS485; // TODO - from configuration
 int serial_baudrate = 115200;
 
-int reporting_interval = 1000;
+int reporting_interval = 5000;
 
 void setup() {
   sc5801.init();
@@ -100,8 +102,7 @@ void loop() {
         // DUMP(data, s);
       }
       
-      sprintf(data, "%05d", get_seq()); // FIXME - the 'data' is seq number now for test
-      type_packet* packet = new_pdu(1, (byte*) data, strlen(data));
+      type_packet* packet = new_packet_heartbeat();
       
       nbiot.SendUDP(0, (char*) packet->payload, packet->len);
       xlog("SEND [%d]", packet->len);      
@@ -113,7 +114,7 @@ void loop() {
     }
   }  
 }
- 
+
 void handle_packet(char* packet, int s) {
   int i = 0;
   while (i < s) {
@@ -124,21 +125,38 @@ void handle_packet(char* packet, int s) {
       xlog("Error: %s", err);
 
     } else {
-      char uid[64];
-      memset(uid, 0, 64);
-      memcpy(uid, pdu->uid, SIZE_OF_IMSI);
+      // char uid[64];
+      // memset(uid, 0, 64);
+      // memcpy(uid, pdu->uid, SIZE_OF_IMSI);
 
-      char data[64];
-      memset(data, 0, 64);
-      memcpy(data, pdu->data, pdu->length);
+      // char data[64];
+      // memset(data, 0, 64);
+      // memcpy(data, pdu->data, pdu->length);
 
-      xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",      
-        uid, pdu->seq, pdu->function, pdu->length, data, pdu->crc
-      );
+      // xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",      
+      //   uid, pdu->seq, pdu->function, pdu->length, data, pdu->crc
+      // );
 
       free(pdu);
     }
   }
+}
+
+byte* int2bytes(byte* bytes, int value) {
+  bytes[0] = (value & 0x0FF00) >> 8;
+  bytes[1] = value & 0x0FF;
+
+  return bytes;
+}
+
+type_packet* new_packet_heartbeat() {
+  byte data[6];
+
+  int2bytes(&data[0], nbiot.GetSignalRSSI());
+  int2bytes(&data[2], nbiot.GetSignalRSRP());
+  int2bytes(&data[4], VERSION);
+  
+  return new_pdu(1, data, 6); // function = 1
 }
 
 // ======
