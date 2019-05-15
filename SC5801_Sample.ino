@@ -117,35 +117,31 @@ void loop() {
 void handle_packet(char* packet, int s) {
   int i = 0;
   while (i < s) {
-    if ((packet[i++] == PDU_MAGIC_HEAD_HI) && (packet[i++] == PDU_MAGIC_HEAD_LO)) {
-      type_pdu* pdu = (type_pdu*) malloc(sizeof(type_pdu));
-      memcpy(pdu->uid, &packet[i], SIZE_OF_IMSI);
-      i += SIZE_OF_IMSI;
-      pdu->seq = packet[i++];
-      pdu->function = packet[i++];
-      pdu->length = ((packet[i++] & 0x0FF) << 8) | (packet[i++] & 0x0FF);
-      pdu->data = (byte*) malloc(pdu->length);
-      memcpy(pdu->data, &packet[i], pdu->length);
-      i += pdu->length;
-      pdu->crc = packet[i++];
+    char err[128];
 
-      xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",
-          pdu->uid, pdu->seq, pdu->function, pdu->length, pdu->data, pdu->crc
-        );
+    type_pdu* pdu = read_pdu((byte*) packet, &i, s, err);
+    if (pdu == NULL) {
+      xlog("Error: %s", err);
 
-      free_pdu(pdu);
+    } else {
+      char uid[64];
+      memset(uid, 0, 64);
+      memcpy(uid, pdu->uid, SIZE_OF_IMSI);
+
+      char data[64];
+      memset(data, 0, 64);
+      memcpy(data, pdu->data, pdu->length);
+
+      xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",      
+        uid, pdu->seq, pdu->function, pdu->length, data, pdu->crc
+      );
+
+      free(pdu);
     }
   }
 }
 
 // ======
-
-// void DUMP(char *bytes, int size) {
-//   xlog("[%d]", size);
-//   // for (int i = 0; i < size; i++) {
-//   //   xlog("%02X ", bytes[i]);
-//   // }
-// }
 
 void xlog(const char* format, ...) {
   int r = 0;

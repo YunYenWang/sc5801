@@ -26,6 +26,8 @@ unsigned int get_seq();
 
 type_packet* new_pdu(byte function, byte* data, int len);
 
+type_pdu* read_pdu(byte* packet, int* i, int s, char* err);
+
 void free_packet(type_packet* packet);
 
 void free_pdu(type_pdu* pdu);
