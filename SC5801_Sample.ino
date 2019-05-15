@@ -17,10 +17,15 @@ extern NBIOT nbiot;
 SC5801 sc5801;
 DeviceSerial  com;
 
+char* wifi_ap_ssid;
+char* wifi_ap_key = "ienet1308";
+
+WiFiUDP wifi_udp_client;
+
 char* cht_iot_apn = "internet.iot";
 char * host = "139.162.116.177";
 int port = 5801;
-int serial_mode = COM_TYPE_RS485;
+int serial_mode = COM_TYPE_RS485; // TODO - from configuration
 int serial_baudrate = 115200;
 
 int reporting_interval = 1000;
@@ -37,10 +42,24 @@ void setup() {
   nbiot.SetBands(NBIOT_BAND_AUTO);
   nbiot.Connect();
   
-  // TODO
-  set_imsi("0123456789ABCDE");
+  set_imsi("0123456789ABCDE"); // FIXME - from nbiot
 
   wifi_ap_setup();
+}
+
+void wifi_ap_setup() {
+  wifi_ap_ssid = get_imsi();
+
+  sl_Stop(0);
+  sl_WlanSetMode(ROLE_AP);
+  sl_Start(NULL, NULL, NULL);
+  WiFi.beginNetwork(wifi_ap_ssid, wifi_ap_key);
+
+  while (WiFi.localIP() == INADDR_NONE) {
+    delay(300);
+  }
+
+  wifi_udp_client.begin(0);
 }
 
 bool connecting = FALSE;
@@ -77,53 +96,56 @@ void loop() {
       int s = nbiot.RecvUDP(0, data, sizeof(data));
       if (s > 0) {
         xlog("RECV [%d]", s);
+        handle_packet(data, s);        
         // DUMP(data, s);
       }
       
       sprintf(data, "%05d", get_seq()); // FIXME - the 'data' is seq number now for test
-      type_pdu* pdu = new_pdu(1, (byte*) data, strlen(data));
+      type_packet* packet = new_pdu(1, (byte*) data, strlen(data));
       
-      nbiot.SendUDP(0, (char*) pdu->payload, pdu->len);
-      xlog("SEND [%d]", pdu->len);      
+      nbiot.SendUDP(0, (char*) packet->payload, packet->len);
+      xlog("SEND [%d]", packet->len);      
       // DUMP((char*) pdu->payload, pdu->len);
 
-      free_pdu(pdu);
+      free_packet(packet);
       
       last = now;
     }
   }  
 }
+ 
+void handle_packet(char* packet, int s) {
+  int i = 0;
+  while (i < s) {
+    if ((packet[i++] == PDU_MAGIC_HEAD_HI) && (packet[i++] == PDU_MAGIC_HEAD_LO)) {
+      type_pdu* pdu = (type_pdu*) malloc(sizeof(type_pdu));
+      memcpy(pdu->uid, &packet[i], SIZE_OF_IMSI);
+      i += SIZE_OF_IMSI;
+      pdu->seq = packet[i++];
+      pdu->function = packet[i++];
+      pdu->length = ((packet[i++] & 0x0FF) << 8) | (packet[i++] & 0x0FF);
+      pdu->data = (byte*) malloc(pdu->length);
+      memcpy(pdu->data, &packet[i], pdu->length);
+      i += pdu->length;
+      pdu->crc = packet[i++];
 
-// ======
+      xlog("uid: %s, seq: %d, fun: %d, len: %d, data: %s, crc: %d",
+          pdu->uid, pdu->seq, pdu->function, pdu->length, pdu->data, pdu->crc
+        );
 
-char* wifi_ap_ssid;
-char* wifi_ap_key = "ienet1308";
-
-WiFiUDP wifi_udp_client;
-
-void wifi_ap_setup() {
-  wifi_ap_ssid = get_imsi();
-
-  sl_Stop(0);
-  sl_WlanSetMode(ROLE_AP);
-  sl_Start(NULL, NULL, NULL);
-  WiFi.beginNetwork(wifi_ap_ssid, wifi_ap_key);
-
-  while (WiFi.localIP() == INADDR_NONE) {
-    delay(300);
+      free_pdu(pdu);
+    }
   }
-
-  wifi_udp_client.begin(0);
 }
 
 // ======
 
-void DUMP(char *bytes, int size) {
-  xlog("[%d]", size);
-  // for (int i = 0; i < size; i++) {
-  //   xlog("%02X ", bytes[i]);
-  // }
-}
+// void DUMP(char *bytes, int size) {
+//   xlog("[%d]", size);
+//   // for (int i = 0; i < size; i++) {
+//   //   xlog("%02X ", bytes[i]);
+//   // }
+// }
 
 void xlog(const char* format, ...) {
   int r = 0;

@@ -3,8 +3,6 @@
 #include "SC5801.h"
 #include "chttl.h"
 
-#define SIZE_OF_IMSI 15
-
 char imsi[SIZE_OF_IMSI];
 unsigned int seq = 1;
 
@@ -21,31 +19,36 @@ unsigned int get_seq() {
 }
 
 // caller's responsibilty to free memory
-type_pdu* new_pdu(byte function, byte* data, int len) {
-  type_pdu* pdu = (type_pdu*) malloc(sizeof(type_pdu));
-  pdu->len = 2 + SIZE_OF_IMSI + 1 + 1 + 2 + len + 1;  
-  pdu->payload = (byte*) malloc(pdu->len);
+type_packet* new_pdu(byte function, byte* data, int len) {
+  type_packet* packet = (type_packet*) malloc(sizeof(type_packet));
+  packet->len = 2 + SIZE_OF_IMSI + 1 + 1 + 2 + len + 1;  
+  packet->payload = (byte*) malloc(packet->len);
   
   int i = 0; 
   
-  pdu->payload[i++] = 0x16;
-  pdu->payload[i++] = 0xA9;
-  memcpy(pdu->payload + i, imsi, SIZE_OF_IMSI);
+  packet->payload[i++] = PDU_MAGIC_HEAD_HI;
+  packet->payload[i++] = PDU_MAGIC_HEAD_LO;
+  memcpy(packet->payload + i, imsi, SIZE_OF_IMSI);
   i += SIZE_OF_IMSI;
-  pdu->payload[i++] = seq;
+  packet->payload[i++] = seq;
   seq = (seq + 1) & 0x0FF;
   
-  pdu->payload[i++] = function;
-  pdu->payload[i++] = (char) ((len & 0x0FF00) >> 8);
-  pdu->payload[i++] = (char) (len & 0x0FF);
-  memcpy(pdu->payload + i, data, len);
+  packet->payload[i++] = function;
+  packet->payload[i++] = (char) ((len & 0x0FF00) >> 8);
+  packet->payload[i++] = (char) (len & 0x0FF);
+  memcpy(packet->payload + i, data, len);
   i += len;
-  pdu->payload[i++] = 0; // TODO - checksum
+  packet->payload[i++] = 0; // TODO - checksum
 
-  return pdu;  
+  return packet;  
+}
+
+void free_packet(type_packet* packet) {
+  free(packet->payload);
+  free(packet);
 }
 
 void free_pdu(type_pdu* pdu) {
-  free(pdu->payload);
+  free(pdu->data);
   free(pdu);
 }
